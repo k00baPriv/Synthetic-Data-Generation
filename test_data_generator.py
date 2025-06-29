@@ -44,11 +44,16 @@ def get_generated_records_model(schema):
 
 def load_schema(schema_file):
     """Load JSON schema from file"""
+    # If no path separator is provided, assume it's in the schemas folder
+    if '/' not in schema_file and '\\' not in schema_file:
+        schema_file = os.path.join('schemas', schema_file)
+    
     try:
         with open(schema_file, 'r') as f:
             return json.load(f)
     except FileNotFoundError:
         print(f"Error: Schema file '{schema_file}' not found.")
+        print("Make sure the schema file exists in the schemas/ folder or provide the full path.")
         sys.exit(1)
     except json.JSONDecodeError:
         print(f"Error: Invalid JSON in schema file '{schema_file}'.")
@@ -188,6 +193,12 @@ async def generate_records(agent, prompt, schema):
 async def main():
     if len(sys.argv) < 2:
         print("Usage: python test_data_generator.py <schema_file.json>")
+        print("Schema files should be placed in the 'schemas/' folder.")
+        print("Generated CSV files will be saved to the 'csv_output/' folder.")
+        print("Examples:")
+        print("  python test_data_generator.py product_schema.json")
+        print("  python test_data_generator.py sample_schema.json")
+        print("  python test_data_generator.py schemas/product_schema.json")
         sys.exit(1)
     
     schema_file = sys.argv[1]
@@ -231,6 +242,10 @@ async def main():
             if save.lower() == 'y':
                 filename = input("Filename (default: generated_data.csv): ")
                 filename = filename if filename else "generated_data.csv"
+                
+                # If no path separator is provided, save to csv_output folder
+                if '/' not in filename and '\\' not in filename:
+                    filename = os.path.join('csv_output', filename)
                 
                 # Get fieldnames from the first record
                 if records and len(records) > 0:
