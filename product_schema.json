@@ -1,0 +1,57 @@
+{
+  "type": "object",
+  "properties": {
+    "product_id": {
+      "type": "integer",
+      "description": "Unique identifier for the product",
+      "example": 1001
+    },
+    "product_name": {
+      "type": "string",
+      "description": "Name of the product",
+      "example": "Wireless Bluetooth Headphones"
+    },
+    "category": {
+      "type": "string",
+      "description": "Product category",
+      "example": "Electronics"
+    },
+    "brand": {
+      "type": "string",
+      "description": "Brand name",
+      "example": "TechSound"
+    },
+    "price": {
+      "type": "number",
+      "description": "Product price in USD",
+      "minimum": 1.0,
+      "maximum": 5000.0,
+      "example": 129.99
+    },
+    "stock_quantity": {
+      "type": "integer",
+      "description": "Available stock quantity",
+      "minimum": 0,
+      "maximum": 10000,
+      "example": 150
+    },
+    "is_available": {
+      "type": "boolean",
+      "description": "Whether the product is available for purchase",
+      "example": true
+    },
+    "release_date": {
+      "type": "string",
+      "description": "Product release date in YYYY-MM-DD format",
+      "example": "2023-06-15"
+    },
+    "rating": {
+      "type": "number",
+      "description": "Product rating out of 5",
+      "minimum": 0.0,
+      "maximum": 5.0,
+      "example": 4.5
+    }
+  },
+  "required": ["product_id", "product_name", "category", "brand", "price", "stock_quantity", "is_available", "release_date", "rating"]
+} 
