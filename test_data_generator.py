@@ -7,27 +7,40 @@ from typing import List, Dict, Any, Literal
 from dataclasses import dataclass
 from dotenv import load_dotenv
 from agents import Agent, Runner, trace
+from pydantic import BaseModel, create_model, ValidationError
 
 # Load environment variables
 load_dotenv()
 
-@dataclass
-class DataRecord:
-    """Represents a single data record with specific fields matching the schema"""
-    id: int
-    name: str
-    email: str
-    age: int
-    department: str
-    salary: float
-    is_active: bool
-    hire_date: str
-
-@dataclass
-class GeneratedRecords:
-    """Output type for the data generation agent"""
-    records: List[DataRecord]
-    count: int
+def get_generated_records_model(schema):
+    """Dynamically create a GeneratedRecords model based on the schema"""
+    # Map JSON schema types to Python types
+    type_mapping = {
+        'string': str,
+        'integer': int,
+        'number': float,
+        'boolean': bool,
+        'array': List,
+        'object': Dict
+    }
+    
+    # Create fields for the record model based on schema properties
+    record_fields = {}
+    for field_name, field_schema in schema.get('properties', {}).items():
+        field_type = field_schema.get('type', 'string')
+        python_type = type_mapping.get(field_type, str)
+        record_fields[field_name] = (python_type, ...)  # ... means required
+    
+    # Create the record model
+    RecordModel = create_model('RecordModel', **record_fields)
+    
+    # Create the GeneratedRecords model
+    generated_records_fields = {
+        'records': (List[RecordModel], ...),
+        'count': (int, ...)
+    }
+    
+    return create_model('GeneratedRecords', **generated_records_fields)
 
 def load_schema(schema_file):
     """Load JSON schema from file"""
@@ -45,6 +58,8 @@ def create_system_message(schema):
     """Create the system message for the agent"""
     # Extract examples, min/max values from schema
     schema_info = []
+    field_descriptions = []
+    
     for field_name, field_schema in schema.get('properties', {}).items():
         field_info = f"- {field_name} ({field_schema.get('type', 'unknown')}): {field_schema.get('description', 'No description')}"
         
@@ -63,6 +78,37 @@ def create_system_message(schema):
             field_info += f" | Constraints: {', '.join(constraints)}"
         
         schema_info.append(field_info)
+        
+        # Build dynamic field description for record model
+        field_type = field_schema.get('type', 'unknown')
+        field_desc = field_schema.get('description', 'No description')
+        
+        # Map JSON schema types to Python types
+        type_mapping = {
+            'string': 'string',
+            'integer': 'integer',
+            'number': 'number',
+            'boolean': 'boolean',
+            'array': 'list',
+            'object': 'dictionary'
+        }
+        
+        python_type = type_mapping.get(field_type, field_type)
+        
+        # Add constraints to description
+        constraint_info = []
+        if 'minimum' in field_schema:
+            constraint_info.append(f"min: {field_schema['minimum']}")
+        if 'maximum' in field_schema:
+            constraint_info.append(f"max: {field_schema['maximum']}")
+        if 'format' in field_schema:
+            constraint_info.append(f"format: {field_schema['format']}")
+        if 'pattern' in field_schema:
+            constraint_info.append(f"pattern: {field_schema['pattern']}")
+        
+        constraint_text = f" ({', '.join(constraint_info)})" if constraint_info else ""
+        
+        field_descriptions.append(f"  * {field_name}: {python_type} ({field_desc}){constraint_text}")
     
     # Create system message with schema context
     system_message = f"""You are a test data generator. Generate records based on the provided schema and user requirements.
@@ -81,15 +127,8 @@ IMPORTANT GUIDELINES:
 5. For fields with examples, use similar patterns but vary the actual values
 
 CRITICAL: You must return a GeneratedRecords object with:
-- records: A list of DataRecord objects, where each DataRecord has the following fields:
-  * id: integer (unique identifier)
-  * name: string (full name)
-  * email: string (email address)
-  * age: integer (age in years, 18-100)
-  * department: string (department name)
-  * salary: number (annual salary, 30000-200000)
-  * is_active: boolean (whether employee is active)
-  * hire_date: string (date in YYYY-MM-DD format)
+- records: A list of record objects, where each record has the following fields:
+{chr(10).join(field_descriptions)}
 - count: The number of records generated
 
 Each record should be a dictionary with field names as keys and values that match the schema types and constraints.
@@ -98,7 +137,7 @@ Generate only valid records that strictly follow the schema. If the user doesn't
     
     return system_message
 
-async def generate_records(agent, prompt ):
+async def generate_records(agent, prompt, schema):
     """Generate test records using the agent"""
     
     # Use the agent to generate data
@@ -118,19 +157,14 @@ async def generate_records(agent, prompt ):
         print(f"Final output type: {type(response)}")
     
     if hasattr(response, 'records') and response.records:
-        # Convert DataRecord objects to dictionaries for compatibility
+        # Convert record objects to dictionaries for compatibility
         records = []
         for record in response.records:
-            record_dict = {
-                'id': record.id,
-                'name': record.name,
-                'email': record.email,
-                'age': record.age,
-                'department': record.department,
-                'salary': record.salary,
-                'is_active': record.is_active,
-                'hire_date': record.hire_date
-            }
+            # Dynamically create record_dict based on schema properties
+            record_dict = {}
+            for field_name in schema.get('properties', {}).keys():
+                if hasattr(record, field_name):
+                    record_dict[field_name] = getattr(record, field_name)
             records.append(record_dict)
         return records
     else:
@@ -161,6 +195,9 @@ async def main():
     # Use the agent to run the workflow
     schema = load_schema(schema_file)
     
+    # Create the dynamic GeneratedRecords model based on the schema
+    GeneratedRecords = get_generated_records_model(schema)
+    
     # Create system message for the agent
     system_message = create_system_message(schema)
     
@@ -183,7 +220,7 @@ async def main():
             break
             
         print(f"\nGenerating records...")
-        records = await generate_records(agent, prompt)
+        records = await generate_records(agent, prompt, schema)
         
         if records:
             print("\nGenerated Records:")
