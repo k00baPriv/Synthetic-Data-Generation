@@ -1,0 +1,50 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "description": "Unique identifier for the record",
+      "example": 1001
+    },
+    "name": {
+      "type": "string",
+      "description": "Full name of the person",
+      "example": "John Smith"
+    },
+    "email": {
+      "type": "string",
+      "description": "Email address",
+      "example": "john.smith@company.com"
+    },
+    "age": {
+      "type": "integer",
+      "description": "Age in years",
+      "minimum": 18,
+      "maximum": 100,
+      "example": 32
+    },
+    "department": {
+      "type": "string",
+      "description": "Department name",
+      "example": "Engineering"
+    },
+    "salary": {
+      "type": "number",
+      "description": "Annual salary",
+      "minimum": 30000,
+      "maximum": 200000,
+      "example": 75000.50
+    },
+    "is_active": {
+      "type": "boolean",
+      "description": "Whether the employee is active",
+      "example": true
+    },
+    "hire_date": {
+      "type": "string",
+      "description": "Date of hire in YYYY-MM-DD format",
+      "example": "2022-03-15"
+    }
+  },
+  "required": ["id", "name", "email", "age", "department", "salary", "is_active", "hire_date"]
+} 
